@@ -20,6 +20,8 @@ const char ellisShutterContactName[] PROGMEM = "ellisShutterContact";
 const char desktopShutterButtonName[] PROGMEM = "desktopShutterButton";
 const char desktopWindowContactName[] PROGMEM = "desktopWindowContact";
 const char desktopShutterContactName[] PROGMEM = "desktopShutterContact";
+const char basementWindowContactName[] PROGMEM = "basementWindowContact";
+const char basementShutterContactName[] PROGMEM = "basementShutterContact";
 const char lightRelayName[] PROGMEM = "lightRelay";
 const char tempSensorsName[] PROGMEM = "tempSensors";
 
@@ -34,6 +36,9 @@ Contact ellisShutterContact(ellisShutterContactName, A0);
 ShutterButton desktopShutterButton(desktopShutterButtonName, 7, 8);
 Contact desktopWindowContact(desktopWindowContactName, A5);
 Contact desktopShutterContact(desktopShutterContactName, A4);
+
+Contact basementWindowContact(basementWindowContactName, 4);
+Contact basementShutterContact(basementShutterContactName, 3);
 
 Relay lightRelay(lightRelayName, 13);
 
@@ -52,13 +57,14 @@ void ellisShutterContact_cmdGet(int arg_cnt, char **args) { ellisShutterContact.
 void desktopShutterButton_cmdGet(int arg_cnt, char **args) { desktopShutterButton.cmdGet(arg_cnt, args); }
 void desktopWindowContact_cmdGet(int arg_cnt, char **args) { desktopWindowContact.cmdGet(arg_cnt, args); }
 void desktopShutterContact_cmdGet(int arg_cnt, char **args) { desktopShutterContact.cmdGet(arg_cnt, args); }
+void basementWindowContact_cmdGet(int arg_cnt, char **args) { basementWindowContact.cmdGet(arg_cnt, args); }
+void basementShutterContact_cmdGet(int arg_cnt, char **args) { basementShutterContact.cmdGet(arg_cnt, args); }
 void lightRelay_cmdGet(int arg_cnt, char **args) { lightRelay.cmdGet(arg_cnt, args); }
 void lightRelay_cmdSet(int arg_cnt, char **args) { lightRelay.cmdSet(arg_cnt, args); }
 uint8_t tempSensorsNb = 0;
 
 void setup() {
   Serial.begin(115200);
-  tempSensors.begin();
   cncInit(nodeName);
   cnc_hkName_set(hkName);
   cnc_cmdGetName_set(cmdGetName);
@@ -74,6 +80,8 @@ void setup() {
   cnc_cmdGet_Add(desktopShutterButtonName , desktopShutterButton_cmdGet);
   cnc_cmdGet_Add(desktopWindowContactName , desktopWindowContact_cmdGet);
   cnc_cmdGet_Add(desktopShutterContactName, desktopShutterContact_cmdGet);
+  cnc_cmdGet_Add(basementWindowContactName , basementWindowContact_cmdGet);
+  cnc_cmdGet_Add(basementShutterContactName, basementShutterContact_cmdGet);
   cnc_cmdGet_Add(lightRelayName, lightRelay_cmdGet);
   cnc_cmdSet_Add(lightRelayName, lightRelay_cmdSet);
 }
@@ -85,22 +93,26 @@ void loop() {
   desktopShutterButton.run(false);
   lightRelay.run(false);
 
-  /* HK @ 1Hz */
-  if(0 == loopNb%1000) {
+  /* HK @ 0.1Hz */
+  if(0 == loopNb%10000) {
     parentsWindowContact.run(true);
     parentsShutterContact.run(true);
     ellisWindowContact.run(true);
     ellisShutterContact.run(true);
     desktopWindowContact.run(true);
     desktopShutterContact.run(true);
+    basementWindowContact.run(true);
+    basementShutterContact.run(true);
+    tempSensors.begin();
     tempSensorsNb = tempSensors.getDeviceCount();
     tempSensors.requestTemperatures();
     for(uint8_t i=0; i<tempSensorsNb; i++)  {
-      cnc_print_hk_index_float(tempSensorsName, i, tempSensors.getTempCByIndex(i));
+      DeviceAddress sensorAddr;
+      tempSensors.getAddress(sensorAddr, i);
+      cnc_print_hk_temp_sensor(tempSensorsName, sensorAddr, tempSensors.getTempCByIndex(i));
     }
   }
   cncPoll();
   loopNb++;
   if(1000000000 <= loopNb) { loopNb = 0; }
 }
-
