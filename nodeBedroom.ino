@@ -45,9 +45,11 @@ Relay lightRelay(lightRelayName, 13);
 OneWire oneWire(2);
 DallasTemperature tempSensors(&oneWire);
 
-static uint32_t loopNb = 0;
+uint32_t previousTime_Contact = 0;
+uint32_t previousTime_Temp = 0;
+uint32_t currentTime = 0;
 
-void ping_cmdGet(int arg_cnt, char **args) { cnc_print_cmdGet_u32(pingName, loopNb); }
+void ping_cmdGet(int arg_cnt, char **args) { cnc_print_cmdGet_u32(pingName, currentTime); }
 void parentsShutterButton_cmdGet(int arg_cnt, char **args) { parentsShutterButton.cmdGet(arg_cnt, args); }
 void parentsWindowContact_cmdGet(int arg_cnt, char **args) { parentsWindowContact.cmdGet(arg_cnt, args); }
 void parentsShutterContact_cmdGet(int arg_cnt, char **args) { parentsShutterContact.cmdGet(arg_cnt, args); }
@@ -84,35 +86,40 @@ void setup() {
   cnc_cmdGet_Add(basementShutterContactName, basementShutterContact_cmdGet);
   cnc_cmdGet_Add(lightRelayName, lightRelay_cmdGet);
   cnc_cmdSet_Add(lightRelayName, lightRelay_cmdSet);
+  previousTime_Contact = millis();
+  previousTime_Temp = millis();
 }
 
 void loop() {
-  delay(1);
-  parentsShutterButton.run(false);
-  ellisShutterButton.run(false);
-  desktopShutterButton.run(false);
-  lightRelay.run(false);
+  parentsShutterButton.run(false); cncPoll();
+  ellisShutterButton.run(false); cncPoll();
+  desktopShutterButton.run(false); cncPoll();
+  lightRelay.run(false); cncPoll();
 
-  /* HK @ 0.1Hz */
-  if(0 == loopNb%10000) {
-    parentsWindowContact.run(true);
-    parentsShutterContact.run(true);
-    ellisWindowContact.run(true);
-    ellisShutterContact.run(true);
-    desktopWindowContact.run(true);
-    desktopShutterContact.run(true);
-    basementWindowContact.run(true);
-    basementShutterContact.run(true);
-    tempSensors.begin();
-    tempSensorsNb = tempSensors.getDeviceCount();
-    tempSensors.requestTemperatures();
+  /* Contact HK @ 1.0Hz */
+  currentTime = millis(); cncPoll();
+  if((uint32_t)(currentTime - previousTime_Contact) >= 1000) {
+    parentsWindowContact.run(true); cncPoll();
+    parentsShutterContact.run(true); cncPoll();
+    ellisWindowContact.run(true); cncPoll();
+    ellisShutterContact.run(true); cncPoll();
+    desktopWindowContact.run(true); cncPoll();
+    desktopShutterContact.run(true); cncPoll();
+    basementWindowContact.run(true); cncPoll();
+    basementShutterContact.run(true); cncPoll();
+    previousTime_Contact = currentTime;
+  }
+  /* Temperature HK @ 0.01Hz */
+  if((uint32_t)(currentTime - previousTime_Temp) >= 100000) {
+    tempSensors.begin(); cncPoll();
+    tempSensorsNb = tempSensors.getDeviceCount(); cncPoll();
+    tempSensors.requestTemperatures(); cncPoll();
     for(uint8_t i=0; i<tempSensorsNb; i++)  {
       DeviceAddress sensorAddr;
-      tempSensors.getAddress(sensorAddr, i);
+      tempSensors.getAddress(sensorAddr, i); cncPoll();
       cnc_print_hk_temp_sensor(tempSensorsName, sensorAddr, tempSensors.getTempCByIndex(i));
     }
+    previousTime_Temp = currentTime;
   }
   cncPoll();
-  loopNb++;
-  if(1000000000 <= loopNb) { loopNb = 0; }
 }
