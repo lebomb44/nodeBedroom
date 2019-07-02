@@ -6,7 +6,7 @@
 
 const char nodeName[] PROGMEM = "bedroom";
 const char sepName[] PROGMEM = " ";
-const char hkName[] PROGMEM = "hk";
+const char hkName[] PROGMEM = "val";
 const char cmdGetName[] PROGMEM = "get";
 const char cmdSetName[] PROGMEM = "set";
 
@@ -45,8 +45,8 @@ Relay lightRelay(lightRelayName, 13);
 OneWire oneWire(2);
 DallasTemperature tempSensors(&oneWire);
 
-uint32_t previousTime_Contact = 0;
-uint32_t previousTime_Temp = 0;
+uint32_t previousTime_1s = 0;
+uint32_t previousTime_10s = 0;
 uint32_t currentTime = 0;
 
 void ping_cmdGet(int arg_cnt, char **args) { cnc_print_cmdGet_u32(pingName, currentTime); }
@@ -86,19 +86,14 @@ void setup() {
   cnc_cmdGet_Add(basementShutterContactName, basementShutterContact_cmdGet);
   cnc_cmdGet_Add(lightRelayName, lightRelay_cmdGet);
   cnc_cmdSet_Add(lightRelayName, lightRelay_cmdSet);
-  previousTime_Contact = millis();
-  previousTime_Temp = millis();
+  previousTime_1s = millis();
+  previousTime_10s = previousTime_1s;
 }
 
 void loop() {
-  parentsShutterButton.run(false); cncPoll();
-  ellisShutterButton.run(false); cncPoll();
-  desktopShutterButton.run(false); cncPoll();
-  lightRelay.run(false); cncPoll();
-
-  /* Contact HK @ 1.0Hz */
   currentTime = millis(); cncPoll();
-  if((uint32_t)(currentTime - previousTime_Contact) >= 1000) {
+  /* HK @ 1.0Hz */
+  if((uint32_t)(currentTime - previousTime_1s) >= 1000) {
     parentsWindowContact.run(true); cncPoll();
     parentsShutterContact.run(true); cncPoll();
     ellisWindowContact.run(true); cncPoll();
@@ -107,19 +102,22 @@ void loop() {
     desktopShutterContact.run(true); cncPoll();
     basementWindowContact.run(true); cncPoll();
     basementShutterContact.run(true); cncPoll();
-    previousTime_Contact = currentTime;
+    parentsShutterButton.run(true); cncPoll();
+    ellisShutterButton.run(true); cncPoll();
+    desktopShutterButton.run(true); cncPoll();
+    lightRelay.run(true); cncPoll();
+    previousTime_1s = currentTime;
   }
-  /* Temperature HK @ 0.01Hz */
-  if((uint32_t)(currentTime - previousTime_Temp) >= 100000) {
+  /* HK @ 0.1Hz */
+  if((uint32_t)(currentTime - previousTime_10s) >= 100000) {
     tempSensors.begin(); cncPoll();
     tempSensorsNb = tempSensors.getDeviceCount(); cncPoll();
     tempSensors.requestTemperatures(); cncPoll();
     for(uint8_t i=0; i<tempSensorsNb; i++)  {
       DeviceAddress sensorAddr;
       tempSensors.getAddress(sensorAddr, i); cncPoll();
-      cnc_print_hk_temp_sensor(tempSensorsName, sensorAddr, tempSensors.getTempCByIndex(i));
+      cnc_print_hk_temp_sensor(tempSensorsName, sensorAddr, tempSensors.getTempCByIndex(i)); cncPoll();
     }
-    previousTime_Temp = currentTime;
+    previousTime_10s = currentTime;
   }
-  cncPoll();
 }
